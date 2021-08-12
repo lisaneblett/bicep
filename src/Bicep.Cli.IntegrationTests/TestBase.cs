@@ -5,7 +5,6 @@ using Bicep.Cli.UnitTests;
 using Bicep.Core.FileSystem;
 using Bicep.Core.Registry;
 using Bicep.Core.Semantics;
-using Bicep.Core.Syntax;
 using Bicep.Core.Text;
 using Bicep.Core.UnitTests;
 using Bicep.Core.UnitTests.Utils;
@@ -13,6 +12,7 @@ using Bicep.Core.Workspaces;
 using FluentAssertions;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Bicep.Cli.IntegrationTests
 {
@@ -21,11 +21,12 @@ namespace Bicep.Cli.IntegrationTests
         protected const string BuildSummaryFailedRegex = @"Build failed: (\d*) Warning\(s\), ([1-9][0-9]*) Error\(s\)";
         protected const string BuildSummarySucceededRegex = @"Build succeeded: (\d*) Warning\(s\), 0 Error\(s\)";
 
-        protected static (string output, string error, int result) Bicep(params string[] args)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "VSTHRD200:Use \"Async\" suffix for async methods", Justification = "Not needed")]
+        protected static Task<(string output, string error, int result)> Bicep(params string[] args)
         {
             return TextWriterHelper.InvokeWriterAction((@out, err) =>
             {
-                return new Program(new InvocationContext(TestTypeHelper.CreateEmptyProvider(), @out, err, BicepTestConstants.DevAssemblyFileVersion)).Run(args);
+                return new Program(new InvocationContext(TestTypeHelper.CreateEmptyProvider(), @out, err, BicepTestConstants.DevAssemblyFileVersion)).RunAsync(args);
             });
         }
 

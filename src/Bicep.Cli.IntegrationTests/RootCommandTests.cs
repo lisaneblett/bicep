@@ -5,6 +5,7 @@ using Bicep.Core.UnitTests.Assertions;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading.Tasks;
 
 namespace Bicep.Cli.IntegrationTests
 {
@@ -12,9 +13,9 @@ namespace Bicep.Cli.IntegrationTests
     public class RootCommandTests : TestBase
     {
         [TestMethod]
-        public void Build_WithWrongArgs_ShouldFail_WithExpectedErrorMessage()
+        public async Task Build_WithWrongArgs_ShouldFail_WithExpectedErrorMessage()
         {
-            var (output, error, result) = Bicep("wrong", "fake", "broken");
+            var (output, error, result) = await Bicep("wrong", "fake", "broken");
 
             using (new AssertionScope())
             {
@@ -27,10 +28,9 @@ namespace Bicep.Cli.IntegrationTests
         }
 
         [TestMethod]
-        public void BicepVersionShouldPrintVersionInformation()
+        public async Task BicepVersionShouldPrintVersionInformation()
         {
-
-            var (output, error, result) = Bicep("--version");
+            var (output, error, result) = await Bicep("--version");
 
             using (new AssertionScope())
             {
@@ -43,9 +43,9 @@ namespace Bicep.Cli.IntegrationTests
         }
 
         [TestMethod]
-        public void BicepHelpShouldPrintHelp()
+        public async Task BicepHelpShouldPrintHelp()
         {
-            var (output, error, result) = Bicep("--help");
+            var (output, error, result) = await Bicep("--help");
 
             using (new AssertionScope())
             {

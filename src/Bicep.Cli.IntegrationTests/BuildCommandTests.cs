@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Bicep.Cli.IntegrationTests
 {
@@ -23,9 +24,9 @@ namespace Bicep.Cli.IntegrationTests
         public TestContext? TestContext { get; set; }
 
         [TestMethod]
-        public void Build_ZeroFiles_ShouldFail_WithExpectedErrorMessage()
+        public async Task Build_ZeroFiles_ShouldFail_WithExpectedErrorMessage()
         {
-            var (output, error, result) = Bicep("build");
+            var (output, error, result) = await Bicep("build");
 
             using (new AssertionScope())
             {
@@ -40,12 +41,12 @@ namespace Bicep.Cli.IntegrationTests
         // TODO: handle variant linter messaging for each data test
         [DataTestMethod]
         [DynamicData(nameof(GetValidDataSets), DynamicDataSourceType.Method, DynamicDataDisplayNameDeclaringType = typeof(DataSet), DynamicDataDisplayName = nameof(DataSet.GetDisplayName))]
-        public void Build_Valid_SingleFile_ShouldSucceed(DataSet dataSet)
+        public async Task Build_Valid_SingleFile_ShouldSucceed(DataSet dataSet)
         {
             var outputDirectory = dataSet.SaveFilesToTestDirectory(TestContext);
             var bicepFilePath = Path.Combine(outputDirectory, DataSet.TestFileMain);
 
-            var (output, error, result) = Bicep("build", bicepFilePath);
+            var (output, error, result) = await Bicep("build", bicepFilePath);
 
             using (new AssertionScope())
             {
@@ -68,12 +69,12 @@ namespace Bicep.Cli.IntegrationTests
 
         [DataTestMethod]
         [DynamicData(nameof(GetValidDataSets), DynamicDataSourceType.Method, DynamicDataDisplayNameDeclaringType = typeof(DataSet), DynamicDataDisplayName = nameof(DataSet.GetDisplayName))]
-        public void Build_Valid_SingleFile_ToStdOut_ShouldSucceed(DataSet dataSet)
+        public async Task Build_Valid_SingleFile_ToStdOut_ShouldSucceed(DataSet dataSet)
         {
             var outputDirectory = dataSet.SaveFilesToTestDirectory(TestContext);
             var bicepFilePath = Path.Combine(outputDirectory, DataSet.TestFileMain);
 
-            var (output, error, result) = Bicep("build", "--stdout", bicepFilePath);
+            var (output, error, result) = await Bicep("build", "--stdout", bicepFilePath);
 
             using (new AssertionScope())
             {
@@ -96,13 +97,13 @@ namespace Bicep.Cli.IntegrationTests
 
         [DataTestMethod]
         [DynamicData(nameof(GetInvalidDataSets), DynamicDataSourceType.Method, DynamicDataDisplayNameDeclaringType = typeof(DataSet), DynamicDataDisplayName = nameof(DataSet.GetDisplayName))]
-        public void Build_Invalid_SingleFile_ShouldFail_WithExpectedErrorMessage(DataSet dataSet)
+        public async Task Build_Invalid_SingleFile_ShouldFail_WithExpectedErrorMessage(DataSet dataSet)
         {
             var outputDirectory = dataSet.SaveFilesToTestDirectory(TestContext);
             var bicepFilePath = Path.Combine(outputDirectory, DataSet.TestFileMain);
             var diagnostics = GetAllDiagnostics(bicepFilePath);
 
-            var (output, error, result) = Bicep("build", bicepFilePath);
+            var (output, error, result) = await Bicep("build", bicepFilePath);
 
             using (new AssertionScope())
             {
@@ -114,12 +115,12 @@ namespace Bicep.Cli.IntegrationTests
 
         [DataTestMethod]
         [DynamicData(nameof(GetInvalidDataSets), DynamicDataSourceType.Method, DynamicDataDisplayNameDeclaringType = typeof(DataSet), DynamicDataDisplayName = nameof(DataSet.GetDisplayName))]
-        public void Build_Invalid_SingleFile_ToStdOut_ShouldFail_WithExpectedErrorMessage(DataSet dataSet)
+        public async Task Build_Invalid_SingleFile_ToStdOut_ShouldFail_WithExpectedErrorMessage(DataSet dataSet)
         {
             var outputDirectory = dataSet.SaveFilesToTestDirectory(TestContext);
             var bicepFilePath = Path.Combine(outputDirectory, DataSet.TestFileMain);
 
-            var (output, error, result) = Bicep("build", "--stdout", bicepFilePath);
+            var (output, error, result) = await Bicep("build", "--stdout", bicepFilePath);
 
             result.Should().Be(1);
             output.Should().BeEmpty();
@@ -129,7 +130,7 @@ namespace Bicep.Cli.IntegrationTests
         }
 
         [TestMethod]
-        public void Build_WithOutFile_ShouldSucceed()
+        public async Task Build_WithOutFile_ShouldSucceed()
         {
             var bicepPath = FileHelper.SaveResultFile(TestContext, "input.bicep", @"
 output myOutput string = 'hello!'
@@ -138,7 +139,7 @@ output myOutput string = 'hello!'
             var outputFilePath = FileHelper.GetResultFilePath(TestContext, "output.json");
 
             File.Exists(outputFilePath).Should().BeFalse();
-            var (output, error, result) = Bicep("build", "--outfile", outputFilePath, bicepPath);
+            var (output, error, result) = await Bicep("build", "--outfile", outputFilePath, bicepPath);
 
             File.Exists(outputFilePath).Should().BeTrue();
             result.Should().Be(0);
@@ -147,14 +148,14 @@ output myOutput string = 'hello!'
         }
 
         [TestMethod]
-        public void Build_WithNonExistantOutDir_ShouldFail_WithExpectedErrorMessage()
+        public async Task Build_WithNonExistantOutDir_ShouldFail_WithExpectedErrorMessage()
         {
             var bicepPath = FileHelper.SaveResultFile(TestContext, "input.bicep", @"
 output myOutput string = 'hello!'
             ");
 
             var outputFileDir = FileHelper.GetResultFilePath(TestContext, "outputdir");
-            var (output, error, result) = Bicep("build", "--outdir", outputFileDir, bicepPath);
+            var (output, error, result) = await Bicep("build", "--outdir", outputFileDir, bicepPath);
 
             result.Should().Be(1);
             output.Should().BeEmpty();
@@ -162,7 +163,7 @@ output myOutput string = 'hello!'
         }
 
         [TestMethod]
-        public void Build_WithOutDir_ShouldSucceed()
+        public async Task Build_WithOutDir_ShouldSucceed()
         {
             var bicepPath = FileHelper.SaveResultFile(TestContext, "input.bicep", @"
 output myOutput string = 'hello!'
@@ -173,7 +174,7 @@ output myOutput string = 'hello!'
             var expectedOutputFile = Path.Combine(outputFileDir, "input.json");
 
             File.Exists(expectedOutputFile).Should().BeFalse();
-            var (output, error, result) = Bicep("build", "--outdir", outputFileDir, bicepPath);
+            var (output, error, result) = await Bicep("build", "--outdir", outputFileDir, bicepPath);
 
             File.Exists(expectedOutputFile).Should().BeTrue();
             output.Should().BeEmpty();
@@ -188,16 +189,16 @@ output myOutput string = 'hello!'
         [DataRow("WrongDir\\Fake.bicep", new[] { "--outdir", "." }, @"An error occurred reading file. Could not find .+'.+WrongDir[\\/]Fake.bicep'")]
         [DataRow("WrongDir\\Fake.bicep", new[] { "--outfile", "file1" }, @"An error occurred reading file. Could not find .+'.+WrongDir[\\/]Fake.bicep'")]
         [DataTestMethod]
-        public void Build_InvalidInputPaths_ShouldProduceExpectedError(string badPath, string[] args, string expectedErrorRegex)
+        public async Task Build_InvalidInputPaths_ShouldProduceExpectedError(string badPath, string[] args, string expectedErrorRegex)
         {
-            var (output, error, result) = Bicep(new[] { "build" }.Concat(args).Append(badPath).ToArray());
+            var (output, error, result) = await Bicep(new[] { "build" }.Concat(args).Append(badPath).ToArray());
 
             result.Should().Be(1);
             output.Should().BeEmpty();
         }
 
         [TestMethod]
-        public void Build_LockedOutputFile_ShouldProduceExpectedError()
+        public async Task Build_LockedOutputFile_ShouldProduceExpectedError()
         {
             var inputFile = FileHelper.SaveResultFile(this.TestContext, "Empty.bicep", DataSets.Empty.Bicep);
             var outputFile = PathHelper.GetDefaultBuildOutputPath(inputFile);
@@ -207,7 +208,7 @@ output myOutput string = 'hello!'
             {
                 // keep the output stream open while we attempt to write to it
                 // this should force an access denied error
-                var (output, error, result) = Bicep("build", inputFile);
+                var (output, error, result) = await Bicep("build", inputFile);
 
                 result.Should().Be(1);
                 output.Should().BeEmpty();

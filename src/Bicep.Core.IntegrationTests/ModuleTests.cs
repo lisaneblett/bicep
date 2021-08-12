@@ -384,7 +384,7 @@ module modulea 'modulea.bicep' = {
 
             result.Should().HaveDiagnostics(new[]
             {
-                ("BCP189", DiagnosticLevel.Error, "The specified module reference scheme \"fake\" is not recognized. Specify a path to a local module file.")
+                ("BCP189", DiagnosticLevel.Error, "The specified module reference scheme \"fake\" is not recognized. Specify a path to a local module file or a module reference using one of the following schemes: \"oci\"")
             });
         }
 

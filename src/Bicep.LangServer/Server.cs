@@ -91,7 +91,7 @@ namespace Bicep.LanguageServer
                 Trace.Listeners.Add(new ServerLogTraceListener(server));
             }
 
-            var scheduler = server.GetService<IModuleRestoreScheduler>();
+            var scheduler = server.GetRequiredService<IModuleRestoreScheduler>();
             scheduler.Start();
 
             await server.WaitForExit;

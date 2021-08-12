@@ -6,11 +6,11 @@ using Bicep.Core.Extensions;
 using Bicep.Core.FileSystem;
 using Bicep.Core.Registry;
 using Bicep.Core.Semantics;
-using Bicep.Core.Syntax;
 using Bicep.Core.Workspaces;
 using Bicep.Decompiler;
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Bicep.Cli.Services
 {
@@ -22,11 +22,11 @@ namespace Bicep.Cli.Services
         private readonly InvocationContext invocationContext;
         private readonly Workspace workspace;
 
-        public CompilationService(IDiagnosticLogger diagnosticLogger, IFileResolver fileResolver, InvocationContext invocationContext, IModuleRegistryProvider registryProvider) 
+        public CompilationService(IDiagnosticLogger diagnosticLogger, IFileResolver fileResolver, InvocationContext invocationContext, IModuleDispatcher moduleDispatcher) 
         {
             this.diagnosticLogger = diagnosticLogger;
             this.fileResolver = fileResolver;
-            this.moduleDispatcher = new ModuleDispatcher(registryProvider);
+            this.moduleDispatcher = moduleDispatcher;
             this.invocationContext = invocationContext;
             this.workspace = new Workspace();
         }
@@ -36,7 +36,12 @@ namespace Bicep.Cli.Services
             var inputUri = PathHelper.FilePathToFileUrl(inputPath);
 
             var sourceFileGrouping = SourceFileGroupingBuilder.Build(this.fileResolver, this.moduleDispatcher, this.workspace, inputUri);
-            if (moduleDispatcher.RestoreModules(sourceFileGrouping.ModulesToRestore))
+
+            // module references in the file may be malformed
+            // however we still want to surface as many errors as we can for the module refs that are valid
+            // so we will try to restore modules with valid refs and skip everything else
+            // (the diagnostics will be collected during compilation)
+            if (moduleDispatcher.RestoreModules(moduleDispatcher.GetValidModuleReferences(sourceFileGrouping.ModulesToRestore)).Result)
             {
                 // modules had to be restored - recompile
                 sourceFileGrouping = SourceFileGroupingBuilder.Rebuild(moduleDispatcher, new Workspace(), sourceFileGrouping);

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime;
 using System.Threading;
@@ -16,9 +17,11 @@ namespace Bicep.LanguageServer
         public static async Task Main()
             => await RunWithCancellationAsync(async cancellationToken =>
             {
-                string profilePath = MulticoreJIT.GetMulticoreJITPath();
+                string profilePath = DirHelper.GetTempPath();
                 ProfileOptimization.SetProfileRoot(profilePath);
                 ProfileOptimization.StartProfile("bicepserver.profile");
+
+                //Debugger.Launch();
 
                 // the server uses JSON-RPC over stdin & stdout to communicate,
                 // so be careful not to use console for logging!

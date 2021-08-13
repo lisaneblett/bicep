@@ -84,12 +84,12 @@ namespace Bicep.Core.Emit
             return "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#";
         }
         private readonly EmitterContext context;
-        private readonly string assemblyFileVersion;
+        private readonly EmitterSettings settings;
 
-        public TemplateWriter(SemanticModel semanticModel, string assemblyFileVersion)
+        public TemplateWriter(SemanticModel semanticModel, EmitterSettings settings)
         {
-            this.context = new EmitterContext(semanticModel);
-            this.assemblyFileVersion = assemblyFileVersion;
+            this.context = new EmitterContext(semanticModel, settings);
+            this.settings = settings;
         }
 
         public void Write(JsonTextWriter writer)
@@ -117,9 +117,9 @@ namespace Bicep.Core.Emit
 
             emitter.EmitProperty("$schema", GetSchema(context.SemanticModel.TargetScope));
 
-            if (context.UseSymbolicNames)
+            if (context.Settings.EnableSymbolicNames)
             {
-                emitter.EmitProperty("languageVersion", "2.0");
+                emitter.EmitProperty("languageVersion", "1.9-experimental");
             }
 
             emitter.EmitProperty("contentVersion", "1.0.0.0");
@@ -268,7 +268,7 @@ namespace Bicep.Core.Emit
         private void EmitResources(JsonTextWriter jsonWriter, ExpressionEmitter emitter)
         {
             jsonWriter.WritePropertyName("resources");
-            if (context.UseSymbolicNames)
+            if (context.Settings.EnableSymbolicNames)
             {
                 jsonWriter.WriteStartObject();
             }
@@ -284,7 +284,7 @@ namespace Bicep.Core.Emit
                     continue;
                 }
 
-                if (context.UseSymbolicNames)
+                if (context.Settings.EnableSymbolicNames)
                 {
                     jsonWriter.WritePropertyName(resource.Symbol.Name);
                 }
@@ -294,7 +294,7 @@ namespace Bicep.Core.Emit
 
             foreach (var moduleSymbol in this.context.SemanticModel.Root.ModuleDeclarations)
             {
-                if (context.UseSymbolicNames)
+                if (context.Settings.EnableSymbolicNames)
                 {
                     jsonWriter.WritePropertyName(moduleSymbol.Name);
                 }
@@ -302,7 +302,7 @@ namespace Bicep.Core.Emit
                 this.EmitModule(jsonWriter, moduleSymbol, emitter);
             }
 
-            if (context.UseSymbolicNames)
+            if (context.Settings.EnableSymbolicNames)
             {
                 jsonWriter.WriteEndObject();
             }
@@ -551,7 +551,7 @@ namespace Bicep.Core.Emit
                     ITemplateWriter moduleWriter = moduleSemanticModel switch
                     {
                         ArmTemplateSemanticModel armTemplateModel => new ArmTemplateWriter(armTemplateModel),
-                        SemanticModel bicepModel => new TemplateWriter(bicepModel, this.assemblyFileVersion),
+                        SemanticModel bicepModel => new TemplateWriter(bicepModel, this.settings),
                         _ => throw new ArgumentException($"Unknown semantic model type: \"{moduleSemanticModel.GetType()}\"."),
                     };
                     moduleWriter.Write(jsonWriter);
@@ -674,7 +674,7 @@ namespace Bicep.Core.Emit
             // need to put dependencies in a deterministic order to generate a deterministic template
             foreach (var dependency in dependencies.OrderBy(x => x.Resource.Name))
             {
-                if (context.UseSymbolicNames)
+                if (context.Settings.EnableSymbolicNames)
                 {
                     EmitSymbolicNameDependsOnEntry(jsonWriter, emitter, newContext, dependency);
                 }
@@ -726,12 +726,20 @@ namespace Bicep.Core.Emit
         {
             jsonWriter.WritePropertyName("metadata");
             jsonWriter.WriteStartObject();
-            jsonWriter.WritePropertyName("_generator");
-            jsonWriter.WriteStartObject();
+            {
+                if (context.Settings.EnableSymbolicNames)
+                {
+                    emitter.EmitProperty("EXPERIMENTAL_WARNING", "Symbolic name support in ARM is experimental, and should be enabled for testing purposes only. Do not enable this setting for any production usage, or you may be unexpectedly broken at any time!");
+                }
 
-            emitter.EmitProperty("name", LanguageConstants.LanguageId);
-            emitter.EmitProperty("version", this.assemblyFileVersion);
-            jsonWriter.WriteEndObject();
+                jsonWriter.WritePropertyName("_generator");
+                jsonWriter.WriteStartObject();
+                {
+                    emitter.EmitProperty("name", LanguageConstants.LanguageId);
+                    emitter.EmitProperty("version", this.context.Settings.AssemblyFileVersion);
+                }
+                jsonWriter.WriteEndObject();
+            }
             jsonWriter.WriteEndObject();
         }
 

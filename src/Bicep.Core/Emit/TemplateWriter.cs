@@ -117,6 +117,11 @@ namespace Bicep.Core.Emit
 
             emitter.EmitProperty("$schema", GetSchema(context.SemanticModel.TargetScope));
 
+            if (context.UseSymbolicNames)
+            {
+                emitter.EmitProperty("languageVersion", "2.0");
+            }
+
             emitter.EmitProperty("contentVersion", "1.0.0.0");
             
             this.EmitMetadata(jsonWriter, emitter);
@@ -263,7 +268,14 @@ namespace Bicep.Core.Emit
         private void EmitResources(JsonTextWriter jsonWriter, ExpressionEmitter emitter)
         {
             jsonWriter.WritePropertyName("resources");
-            jsonWriter.WriteStartArray();
+            if (context.UseSymbolicNames)
+            {
+                jsonWriter.WriteStartObject();
+            }
+            else
+            {
+                jsonWriter.WriteStartArray();
+            }
 
             foreach (var resource in this.context.SemanticModel.AllResources)
             {
@@ -272,15 +284,32 @@ namespace Bicep.Core.Emit
                     continue;
                 }
 
+                if (context.UseSymbolicNames)
+                {
+                    jsonWriter.WritePropertyName(resource.Symbol.Name);
+                }
+
                 this.EmitResource(jsonWriter, resource, emitter);
             }
 
             foreach (var moduleSymbol in this.context.SemanticModel.Root.ModuleDeclarations)
             {
+                if (context.UseSymbolicNames)
+                {
+                    jsonWriter.WritePropertyName(moduleSymbol.Name);
+                }
+
                 this.EmitModule(jsonWriter, moduleSymbol, emitter);
             }
 
-            jsonWriter.WriteEndArray();
+            if (context.UseSymbolicNames)
+            {
+                jsonWriter.WriteEndObject();
+            }
+            else
+            {
+                jsonWriter.WriteEndArray();
+            }
         }
 
         private long? GetBatchSize(StatementSyntax decoratedSyntax)
@@ -549,6 +578,87 @@ namespace Bicep.Core.Emit
             }
         }
 
+        private void EmitSymbolicNameDependsOnEntry(JsonTextWriter jsonWriter, ExpressionEmitter emitter, SyntaxBase newContext, ResourceDependency dependency)
+        {
+            switch (dependency.Resource)
+            {
+                case ResourceSymbol resourceDependency:
+                    var resource = context.SemanticModel.ResourceMetadata.TryLookup(resourceDependency.DeclaringSyntax) ??
+                        throw new ArgumentException($"Unable to find resource metadata for dependency '{dependency.Resource.Name}'");
+
+                    switch ((resourceDependency.IsCollection, dependency.IndexExpression))
+                    {
+                        case (false, _):
+                            jsonWriter.WriteValue(resourceDependency.Name);
+                            break;
+                        // dependency is on the entire resource collection
+                        // write the name of the resource collection as the dependency
+                        case (true, null):
+                            jsonWriter.WriteValue(resourceDependency.Name);
+                            break;
+                        case (true, {} indexExpression):
+                            emitter.EmitIndexedSymbolReference(resource, indexExpression, newContext);
+                            break;
+                    }
+                    break;
+                case ModuleSymbol moduleDependency:
+                    switch ((moduleDependency.IsCollection, dependency.IndexExpression))
+                    {
+                        case (false, _):
+                            jsonWriter.WriteValue(moduleDependency.Name);
+                            break;
+                        // dependency is on the entire resource collection
+                        // write the name of the resource collection as the dependency
+                        case (true, null):
+                            jsonWriter.WriteValue(moduleDependency.Name);
+                            break;
+                        case (true, {} indexExpression):
+                            emitter.EmitIndexedSymbolReference(moduleDependency, indexExpression, newContext);
+                            break;
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException($"Found dependency '{dependency.Resource.Name}' of unexpected type {dependency.GetType()}");
+            }            
+        }
+
+        private void EmitClassicDependsOnEntry(JsonTextWriter jsonWriter, ExpressionEmitter emitter, SyntaxBase newContext, ResourceDependency dependency)
+        {
+            switch (dependency.Resource)
+            {
+                case ResourceSymbol resourceDependency:
+                    if (resourceDependency.IsCollection && dependency.IndexExpression == null)
+                    {
+                        // dependency is on the entire resource collection
+                        // write the name of the resource collection as the dependency
+                        jsonWriter.WriteValue(resourceDependency.DeclaringResource.Name.IdentifierName);
+
+                        break;
+                    }
+
+                    var resource = context.SemanticModel.ResourceMetadata.TryLookup(resourceDependency.DeclaringSyntax) ??
+                        throw new ArgumentException($"Unable to find resource metadata for dependency '{dependency.Resource.Name}'");
+
+                    emitter.EmitResourceIdReference(resource, dependency.IndexExpression, newContext);
+                    break;
+                case ModuleSymbol moduleDependency:
+                    if (moduleDependency.IsCollection && dependency.IndexExpression == null)
+                    {
+                        // dependency is on the entire module collection
+                        // write the name of the module collection as the dependency
+                        jsonWriter.WriteValue(moduleDependency.DeclaringModule.Name.IdentifierName);
+
+                        break;
+                    }
+
+                    emitter.EmitResourceIdReference(moduleDependency, dependency.IndexExpression, newContext);
+
+                    break;
+                default:
+                    throw new InvalidOperationException($"Found dependency '{dependency.Resource.Name}' of unexpected type {dependency.GetType()}");
+            }
+        }
+
         private void EmitDependsOn(JsonTextWriter jsonWriter, DeclaredSymbol declaredSymbol, ExpressionEmitter emitter, SyntaxBase newContext)
         {
             var dependencies = context.ResourceDependencies[declaredSymbol]
@@ -564,38 +674,13 @@ namespace Bicep.Core.Emit
             // need to put dependencies in a deterministic order to generate a deterministic template
             foreach (var dependency in dependencies.OrderBy(x => x.Resource.Name))
             {
-                switch (dependency.Resource)
+                if (context.UseSymbolicNames)
                 {
-                    case ResourceSymbol resourceDependency:
-                        if (resourceDependency.IsCollection && dependency.IndexExpression == null)
-                        {
-                            // dependency is on the entire resource collection
-                            // write the name of the resource collection as the dependency
-                            jsonWriter.WriteValue(resourceDependency.DeclaringResource.Name.IdentifierName);
-
-                            break;
-                        }
-
-                        var resource = context.SemanticModel.ResourceMetadata.TryLookup(resourceDependency.DeclaringSyntax) ??
-                            throw new ArgumentException($"Unable to find resource metadata for dependency '{dependency.Resource.Name}'");
-
-                        emitter.EmitResourceIdReference(resource, dependency.IndexExpression, newContext);
-                        break;
-                    case ModuleSymbol moduleDependency:
-                        if (moduleDependency.IsCollection && dependency.IndexExpression == null)
-                        {
-                            // dependency is on the entire module collection
-                            // write the name of the module collection as the dependency
-                            jsonWriter.WriteValue(moduleDependency.DeclaringModule.Name.IdentifierName);
-
-                            break;
-                        }
-
-                        emitter.EmitResourceIdReference(moduleDependency, dependency.IndexExpression, newContext);
-
-                        break;
-                    default:
-                        throw new InvalidOperationException($"Found dependency '{dependency.Resource.Name}' of unexpected type {dependency.GetType()}");
+                    EmitSymbolicNameDependsOnEntry(jsonWriter, emitter, newContext, dependency);
+                }
+                else
+                {
+                    EmitClassicDependsOnEntry(jsonWriter, emitter, newContext, dependency);
                 }
             }
             jsonWriter.WriteEndArray();

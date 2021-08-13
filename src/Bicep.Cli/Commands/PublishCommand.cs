@@ -58,16 +58,15 @@ namespace Bicep.Cli.Commands
 
         private ModuleReference ValidateReference(string targetModuleReference)
         {
-            var moduleReference = this.moduleDispatcher.TryGetModuleReference(targetModuleReference, out var failureBuilder);
+            var moduleReference = this.moduleDispatcher.TryGetModuleReference(targetModuleReference, out _);
             if(moduleReference is null)
             {
-                var message = failureBuilder!(DiagnosticBuilder.ForPosition(new TextSpan(0, 0))).Message;
-                throw new BicepException(message);
+                throw new BicepException($"The specified module target \"{targetModuleReference}\" is not valid.");
             }
 
             if(!this.moduleDispatcher.GetRegistryCapabilities(moduleReference).HasFlag(RegistryCapabilities.Publish))
             {
-                throw new BicepException($"The specified target module reference \"{targetModuleReference}\" cannot be published.");
+                throw new BicepException($"The specified module target \"{targetModuleReference}\" is not supported.");
             }
 
             return moduleReference;

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Bicep.Cli.Arguments;
+using Bicep.Cli.Services;
 using System;
 
 namespace Bicep.Cli.Commands
@@ -36,6 +37,22 @@ namespace Bicep.Cli.Commands
         {
             var exeName = ThisAssembly.AssemblyName;
             var versionString = GetVersionString();
+
+            var publishText = 
+$@"
+  {exeName} publish <file> --target <ref>
+    Publishes the .bicep file to the module registry.
+
+    Arguments:
+      <file>        The input file
+      <ref>         The module reference
+
+    Examples:
+      bicep publish file.bicep --target oci:example.azurecr.io/hello/world:v1
+
+";
+
+            var publishPlaceholder = this.invocationContext.Features.RegistryEnabled ? publishText : Environment.NewLine;
 
             var output =
 $@"Bicep CLI version {versionString}
@@ -76,18 +93,7 @@ Usage:
       bicep decompile file.json --stdout
       bicep decompile file.json --outdir dir1
       bicep decompile file.json --outfile file.bicep
-
-  {exeName} publish <file> --target <ref>
-    Publishes the .bicep file to the module registry.
-
-    Arguments:
-      <file>        The input file
-      <ref>         The module reference
-
-    Examples:
-      bicep publish file.bicep --target oci:example.azurecr.io/hello/world:v1
-
-  {exeName} [options]
+{publishPlaceholder}  {exeName} [options]
     Options:
       --version  -v   Shows bicep version information
       --help     -h   Shows this usage information

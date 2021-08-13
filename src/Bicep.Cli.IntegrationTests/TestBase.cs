@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Bicep.Cli.Services;
 using Bicep.Cli.UnitTests;
 using Bicep.Core.FileSystem;
 using Bicep.Core.Registry;
@@ -22,11 +23,13 @@ namespace Bicep.Cli.IntegrationTests
         protected const string BuildSummarySucceededRegex = @"Build succeeded: (\d*) Warning\(s\), 0 Error\(s\)";
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "VSTHRD200:Use \"Async\" suffix for async methods", Justification = "Not needed")]
-        protected static Task<(string output, string error, int result)> Bicep(params string[] args)
+        protected static Task<(string output, string error, int result)> Bicep(params string[] args) => Bicep(new FeatureProvider(), args);
+
+        protected static Task<(string output, string error, int result)> Bicep(IFeatureProvider features, params string[] args)
         {
             return TextWriterHelper.InvokeWriterAction((@out, err) =>
             {
-                return new Program(new InvocationContext(TestTypeHelper.CreateEmptyProvider(), @out, err, BicepTestConstants.DevAssemblyFileVersion)).RunAsync(args);
+                return new Program(new InvocationContext(TestTypeHelper.CreateEmptyProvider(), @out, err, BicepTestConstants.DevAssemblyFileVersion, features)).RunAsync(args);
             });
         }
 

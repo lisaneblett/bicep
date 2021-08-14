@@ -10,7 +10,6 @@ using Bicep.Core.Workspaces;
 using Bicep.Decompiler;
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace Bicep.Cli.Services
 {
@@ -21,14 +20,16 @@ namespace Bicep.Cli.Services
         private readonly IModuleDispatcher moduleDispatcher;
         private readonly InvocationContext invocationContext;
         private readonly Workspace workspace;
+        private readonly TemplateDecompiler decompiler;
 
-        public CompilationService(IDiagnosticLogger diagnosticLogger, IFileResolver fileResolver, InvocationContext invocationContext, IModuleDispatcher moduleDispatcher) 
+        public CompilationService(IDiagnosticLogger diagnosticLogger, IFileResolver fileResolver, InvocationContext invocationContext, IModuleDispatcher moduleDispatcher, TemplateDecompiler decompiler) 
         {
             this.diagnosticLogger = diagnosticLogger;
             this.fileResolver = fileResolver;
             this.moduleDispatcher = moduleDispatcher;
             this.invocationContext = invocationContext;
             this.workspace = new Workspace();
+            this.decompiler = decompiler;
         }
 
         public Compilation Compile(string inputPath)
@@ -61,7 +62,7 @@ namespace Bicep.Cli.Services
 
             Uri outputUri = PathHelper.FilePathToFileUrl(outputPath);
 
-            var decompilation = TemplateDecompiler.DecompileFileWithModules(invocationContext.ResourceTypeProvider, new FileResolver(), inputUri, outputUri);
+            var decompilation = decompiler.DecompileFileWithModules(inputUri, outputUri);
 
             foreach (var (fileUri, bicepOutput) in decompilation.filesToSave)
             {

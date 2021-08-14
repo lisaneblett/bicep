@@ -11,27 +11,36 @@ using Bicep.Core.UnitTests;
 using Bicep.Core.UnitTests.Utils;
 using Bicep.Core.Workspaces;
 using FluentAssertions;
+using Moq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Bicep.Cli.IntegrationTests
 {
-    public class TestBase
+    public abstract class TestBase
     {
         protected const string BuildSummaryFailedRegex = @"Build failed: (\d*) Warning\(s\), ([1-9][0-9]*) Error\(s\)";
         protected const string BuildSummarySucceededRegex = @"Build succeeded: (\d*) Warning\(s\), 0 Error\(s\)";
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "VSTHRD200:Use \"Async\" suffix for async methods", Justification = "Not needed")]
-        protected static Task<(string output, string error, int result)> Bicep(params string[] args) => Bicep(new FeatureProvider(), args);
+        protected static readonly MockRepository Repository = new(MockBehavior.Strict);
 
-        protected static Task<(string output, string error, int result)> Bicep(IFeatureProvider features, params string[] args)
-        {
-            return TextWriterHelper.InvokeWriterAction((@out, err) =>
-            {
-                return new Program(new InvocationContext(TestTypeHelper.CreateEmptyProvider(), @out, err, BicepTestConstants.DevAssemblyFileVersion, features)).RunAsync(args);
-            });
-        }
+        protected record InvocationSettings(IFeatureProvider Features, IContainerRegistryClientFactory ClientFactory);
+
+        protected static Task<(string output, string error, int result)> Bicep(params string[] args) => Bicep(CreateDefaultSettings(), args);
+
+        protected static InvocationSettings CreateDefaultSettings() => new(Features: Repository.Create<IFeatureProvider>().Object, ClientFactory: Repository.Create<IContainerRegistryClientFactory>().Object);
+
+        protected static Task<(string output, string error, int result)> Bicep(InvocationSettings settings, params string[] args) =>
+            TextWriterHelper.InvokeWriterAction((@out, err) =>
+                new Program(new InvocationContext(
+                    TestTypeHelper.CreateEmptyProvider(),
+                    @out,
+                    err,
+                    BicepTestConstants.DevAssemblyFileVersion,
+                    features: settings.Features,
+                    clientFactory: settings.ClientFactory)).RunAsync(args));
 
         protected static void AssertNoErrors(string error)
         {
@@ -41,9 +50,9 @@ namespace Bicep.Cli.IntegrationTests
             }
         }
 
-        protected static IEnumerable<string> GetAllDiagnostics(string bicepFilePath)
+        protected static IEnumerable<string> GetAllDiagnostics(string bicepFilePath, IContainerRegistryClientFactory clientFactory)
         {
-            var dispatcher = new ModuleDispatcher(new DefaultModuleRegistryProvider(BicepTestConstants.FileResolver));
+            var dispatcher = new ModuleDispatcher(new DefaultModuleRegistryProvider(BicepTestConstants.FileResolver, clientFactory));
             var sourceFileGrouping = SourceFileGroupingBuilder.Build(BicepTestConstants.FileResolver, dispatcher, new Workspace(), PathHelper.FilePathToFileUrl(bicepFilePath));
             var compilation = new Compilation(TestTypeHelper.CreateEmptyProvider(), sourceFileGrouping);
 

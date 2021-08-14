@@ -12,6 +12,7 @@ using Bicep.Core.FileSystem;
 using Bicep.Core.Registry;
 using Bicep.Core.TypeSystem.Az;
 using Bicep.Core.Utils;
+using Bicep.Decompiler;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -39,7 +40,13 @@ namespace Bicep.Cli
 
             BicepDeploymentsInterop.Initialize();
 
-            var program = new Program(new InvocationContext(AzResourceTypeProvider.CreateWithAzTypes(), Console.Out, Console.Error, ThisAssembly.AssemblyFileVersion, new FeatureProvider()));
+            var program = new Program(new InvocationContext(
+                AzResourceTypeProvider.CreateWithAzTypes(),
+                Console.Out,
+                Console.Error,
+                ThisAssembly.AssemblyFileVersion,
+                features: null,
+                clientFactory: null));
 
             return program.RunAsync(args);
         }
@@ -103,20 +110,15 @@ namespace Bicep.Cli
         private ServiceProvider ConfigureServices()
         {
             return new ServiceCollection()
-                // Adds commands to the DI container
                 .AddCommands()
-
-                // Adds the ILogger and IDiagnosticlogger
+                .AddInvocationContext(invocationContext)
                 .AddSingleton(CreateLoggerFactory().CreateLogger("bicep"))
                 .AddSingleton<IDiagnosticLogger, BicepDiagnosticLogger>()
-
-                // Handles the context of this invocation
-                .AddSingleton(invocationContext)
-
-                // Adds the various services required by the commands
                 .AddSingleton<IFileResolver, FileResolver>()
                 .AddSingleton<IModuleDispatcher, ModuleDispatcher>()
                 .AddSingleton<IModuleRegistryProvider, DefaultModuleRegistryProvider>()
+                .AddSingleton<IContainerRegistryClientFactory, ContainerRegistryClientFactory>()
+                .AddSingleton<TemplateDecompiler>()
                 .AddSingleton<DecompilationWriter>()
                 .AddSingleton<CompilationWriter>()
                 .AddSingleton<CompilationService>()

@@ -16,15 +16,17 @@ using UploadManifestOptions = Bicep.Core.RegistryClient.UploadManifestOptions;
 
 namespace Bicep.Core.Registry
 {
-    public class AcrClient : IOciArtifactClient
+    public class AzureContainerRegistryManager
     {
         private readonly string artifactCachePath;
         private readonly TokenCredential tokenCredential;
+        private readonly IContainerRegistryClientFactory clientFactory;
 
-        public AcrClient(string artifactCachePath, TokenCredential tokenCredential)
+        public AzureContainerRegistryManager(string artifactCachePath, TokenCredential tokenCredential, IContainerRegistryClientFactory clientFactory)
         {
             this.artifactCachePath = artifactCachePath;
             this.tokenCredential = tokenCredential;
+            this.clientFactory = clientFactory;
         }
 
         public async Task<OciClientResult> PullArtifactsync(OciArtifactModuleReference moduleReference)
@@ -39,7 +41,7 @@ namespace Bicep.Core.Registry
             {
                 return new(false, "Module not found.");
             }
-            catch(AcrClientException exception)
+            catch(AcrManagerException exception)
             {
                 // we can trust the message in our own exception
                 return new(false, exception.Message);
@@ -52,6 +54,8 @@ namespace Bicep.Core.Registry
 
         public async Task PushArtifactAsync(OciArtifactModuleReference moduleReference, StreamDescriptor config, params StreamDescriptor[] layers)
         {
+            // TODO: Add similar exception handling as in the pull* method
+
             // TODO: How do we choose this? Does it ever change?
             var algorithmIdentifier = DescriptorFactory.AlgorithmIdentifierSha256;
 
@@ -104,7 +108,7 @@ namespace Bicep.Core.Registry
 
         private static Uri GetRegistryUri(OciArtifactModuleReference moduleReference) => new Uri($"https://{moduleReference.Registry}");
 
-        private BicepRegistryBlobClient CreateBlobClient(OciArtifactModuleReference moduleReference) => new(GetRegistryUri(moduleReference), this.tokenCredential, moduleReference.Repository);
+        private BicepRegistryBlobClient CreateBlobClient(OciArtifactModuleReference moduleReference) => this.clientFactory.CreateBlobClient(GetRegistryUri(moduleReference), moduleReference.Repository, this.tokenCredential);
 
         private static string TrimSha(string digest)
         {
@@ -126,7 +130,7 @@ namespace Bicep.Core.Registry
             }
             catch (Exception exception)
             {
-                throw new AcrClientException("Unable to create the local module directory.", exception);
+                throw new AcrManagerException("Unable to create the local module directory.", exception);
             }
         }
 
@@ -161,13 +165,13 @@ namespace Bicep.Core.Registry
             }
         }
 
-        private class AcrClientException : Exception
+        private class AcrManagerException : Exception
         {
-            public AcrClientException(string message) : base(message)
+            public AcrManagerException(string message) : base(message)
             {
             }
 
-            public AcrClientException(string message, Exception innerException) : base(message, innerException)
+            public AcrManagerException(string message, Exception innerException) : base(message, innerException)
             {
             }
         }

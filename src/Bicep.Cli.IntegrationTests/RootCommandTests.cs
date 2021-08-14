@@ -6,7 +6,6 @@ using Bicep.Core.UnitTests.Assertions;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
 using System.Threading.Tasks;
 
 namespace Bicep.Cli.IntegrationTests
@@ -14,7 +13,7 @@ namespace Bicep.Cli.IntegrationTests
     [TestClass]
     public class RootCommandTests : TestBase
     {
-        private static readonly MockRepository Repository = new MockRepository(MockBehavior.Strict);
+        
 
         [TestMethod]
         public async Task Build_WithWrongArgs_ShouldFail_WithExpectedErrorMessage()
@@ -49,7 +48,12 @@ namespace Bicep.Cli.IntegrationTests
         [TestMethod]
         public async Task BicepHelpShouldPrintHelp()
         {
-            var (output, error, result) = await Bicep("--help");
+            var featuresMock = Repository.Create<IFeatureProvider>();
+            featuresMock.Setup(m => m.RegistryEnabled).Returns(true);
+
+            var settings = CreateDefaultSettings() with { Features = featuresMock.Object };
+
+            var (output, error, result) = await Bicep(settings, "--help");
 
             using (new AssertionScope())
             {
@@ -82,7 +86,9 @@ namespace Bicep.Cli.IntegrationTests
             var featuresMock = Repository.Create<IFeatureProvider>();
             featuresMock.Setup(m => m.RegistryEnabled).Returns(true);
 
-            var (output, error, result) = await Bicep(featuresMock.Object, "--help");
+            var settings = CreateDefaultSettings() with { Features = featuresMock.Object };
+
+            var (output, error, result) = await Bicep(settings, "--help");
 
             result.Should().Be(0);
             error.Should().BeEmpty();
@@ -104,7 +110,9 @@ namespace Bicep.Cli.IntegrationTests
             var featuresMock = Repository.Create<IFeatureProvider>();
             featuresMock.Setup(m => m.RegistryEnabled).Returns(false);
 
-            var (output, error, result) = await Bicep(featuresMock.Object, "--help");
+            var settings = CreateDefaultSettings() with { Features = featuresMock.Object };
+
+            var (output, error, result) = await Bicep(settings, "--help");
 
             result.Should().Be(0);
             error.Should().BeEmpty();

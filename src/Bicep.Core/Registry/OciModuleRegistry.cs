@@ -19,12 +19,12 @@ namespace Bicep.Core.Registry
     {
         private readonly IFileResolver fileResolver;
 
-        private readonly IOciArtifactClient client;
+        private readonly AzureContainerRegistryManager client;
 
-        public OciModuleRegistry(IFileResolver fileResolver)
+        public OciModuleRegistry(IFileResolver fileResolver, IContainerRegistryClientFactory clientFactory)
         {
             this.fileResolver = fileResolver;
-            this.client = new AcrClient(GetArtifactCachePath(), new DefaultAzureCredential());
+            this.client = new AzureContainerRegistryManager(GetArtifactCachePath(), new DefaultAzureCredential(), clientFactory);
         }
 
         public string Scheme => ModuleReferenceSchemes.Oci;

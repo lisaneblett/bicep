@@ -101,7 +101,7 @@ namespace Bicep.Cli.IntegrationTests
         {
             var outputDirectory = dataSet.SaveFilesToTestDirectory(TestContext);
             var bicepFilePath = Path.Combine(outputDirectory, DataSet.TestFileMain);
-            var diagnostics = GetAllDiagnostics(bicepFilePath);
+            var diagnostics = GetAllDiagnostics(bicepFilePath, CreateDefaultSettings().ClientFactory);
 
             var (output, error, result) = await Bicep("build", bicepFilePath);
 
@@ -125,7 +125,7 @@ namespace Bicep.Cli.IntegrationTests
             result.Should().Be(1);
             output.Should().BeEmpty();
 
-            var diagnostics = GetAllDiagnostics(bicepFilePath);
+            var diagnostics = GetAllDiagnostics(bicepFilePath, CreateDefaultSettings().ClientFactory);
             error.Should().ContainAll(diagnostics);
         }
 

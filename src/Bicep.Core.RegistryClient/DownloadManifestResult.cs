@@ -8,7 +8,7 @@ namespace Bicep.Core.RegistryClient
 {
     public class DownloadManifestResult
     {
-        internal DownloadManifestResult(Stream content)
+        public DownloadManifestResult(Stream content)
         {
             Content = content;
         }

@@ -92,7 +92,7 @@ namespace Bicep.Core.UnitTests.Registry
             await Task.Yield();
 
             var (copy, digest) = ReadStream(stream);
-            Blobs.TryAdd(digest, copy);
+            Manifests.TryAdd(digest, copy);
 
             if(options.Tag is not null)
             {

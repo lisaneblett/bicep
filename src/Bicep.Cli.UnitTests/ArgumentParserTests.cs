@@ -56,6 +56,7 @@ namespace Bicep.Cli.UnitTests
         [DataRow(new[] { "publish", "--target", "foo", "--target" }, "The --target parameter expects an argument.")]
         [DataRow(new[] { "publish", "--target", "foo", "--target", "foo2" }, "The --target parameter cannot be specified twice.")]
         [DataRow(new[] { "publish", "file" }, "The target module was not specified.")]
+        [DataRow(new[] { "publish", "file", "file2" }, "The input file path cannot be specified multiple times.")]
         public void Invalid_args_trigger_validation_exceptions(string[] parameters, string expectedException)
         {
             Action parseFunc = () => ArgumentParser.TryParse(parameters);

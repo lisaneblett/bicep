@@ -117,7 +117,6 @@ namespace Bicep.Cli
                 .AddSingleton<IFileResolver, FileResolver>()
                 .AddSingleton<IModuleDispatcher, ModuleDispatcher>()
                 .AddSingleton<IModuleRegistryProvider, DefaultModuleRegistryProvider>()
-                .AddSingleton<IContainerRegistryClientFactory, ContainerRegistryClientFactory>()
                 .AddSingleton<TemplateDecompiler>()
                 .AddSingleton<DecompilationWriter>()
                 .AddSingleton<CompilationWriter>()

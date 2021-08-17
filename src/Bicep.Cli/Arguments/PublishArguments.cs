@@ -35,7 +35,7 @@ namespace Bicep.Cli.Arguments
 
                         if (InputFile is not null)
                         {
-                            throw new CommandLineException($"The input file path cannot be specified multiple times");
+                            throw new CommandLineException($"The input file path cannot be specified multiple times.");
                         }
 
                         InputFile = args[i];

@@ -18,6 +18,7 @@ namespace Bicep.Cli
             IFeatureProvider? features = null,
             IContainerRegistryClientFactory? clientFactory = null)
         {
+            // keep the list of services in this class in sync with the logic in the AddInvocationContext() extension method
             ResourceTypeProvider = resourceTypeProvider;
             OutputWriter = outputWriter;
             ErrorWriter = errorWriter;

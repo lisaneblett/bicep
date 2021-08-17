@@ -18,25 +18,25 @@ namespace Bicep.Core.UnitTests.Registry
     {
         private static MockRepository Repository = new(MockBehavior.Strict);
 
-        // maps digest to blob bytes
-        private readonly ConcurrentDictionary<string, ImmutableArray<byte>> blobs = new();
-
-        // maps digest to manifest bytes
-        private readonly ConcurrentDictionary<string, ImmutableArray<byte>> manifests = new();
-
-        // maps tag to manifest digest
-        private readonly ConcurrentDictionary<string, string> manifestTags = new();
-
         public MockRegistryBlobClient() : base()
         {
             // ensure we call the base parameterless constructor to prevent outgoing calls
         }
 
+        // maps digest to blob bytes
+        public ConcurrentDictionary<string, ImmutableArray<byte>> Blobs { get; } = new();
+
+        // maps digest to manifest bytes
+        public ConcurrentDictionary<string, ImmutableArray<byte>> Manifests { get; } = new();
+
+        // maps tag to manifest digest
+        public ConcurrentDictionary<string, string> ManifestTags { get; } = new();
+
         public override async Task<Response<DownloadBlobResult>> DownloadBlobAsync(string digest, DownloadBlobOptions? options = default, CancellationToken cancellationToken = default)
         {
             await Task.Yield();
 
-            if(!this.blobs.TryGetValue(digest, out var bytes))
+            if(!this.Blobs.TryGetValue(digest, out var bytes))
             {
                 throw new RequestFailedException(404, "Mock blob does not exist.");
             }
@@ -57,13 +57,13 @@ namespace Bicep.Core.UnitTests.Registry
             else
             {
                 // tag ref
-                if (!this.manifestTags.TryGetValue(reference, out digest))
+                if (!this.ManifestTags.TryGetValue(reference, out digest))
                 {
                     throw new RequestFailedException(404, "Mock manifest tag does not exist.");
                 }
             }
 
-            if(!this.manifests.TryGetValue(digest, out var bytes))
+            if(!this.Manifests.TryGetValue(digest, out var bytes))
             {
                 throw new RequestFailedException(404, "Mock manifest does not exist.");
             }
@@ -76,7 +76,7 @@ namespace Bicep.Core.UnitTests.Registry
             await Task.Yield();
 
             var (copy, digest) = ReadStream(stream);
-            blobs.TryAdd(digest, copy);
+            Blobs.TryAdd(digest, copy);
 
             return CreateResult(new UploadBlobResult());
         }
@@ -92,12 +92,12 @@ namespace Bicep.Core.UnitTests.Registry
             await Task.Yield();
 
             var (copy, digest) = ReadStream(stream);
-            blobs.TryAdd(digest, copy);
+            Blobs.TryAdd(digest, copy);
 
             if(options.Tag is not null)
             {
                 // map tag to the digest
-                this.manifestTags[options.Tag] = digest;
+                this.ManifestTags[options.Tag] = digest;
             }
 
             return CreateResult(new UploadManifestResult());

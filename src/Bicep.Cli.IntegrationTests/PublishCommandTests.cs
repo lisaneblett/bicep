@@ -4,6 +4,7 @@
 using Azure.Core;
 using Bicep.Core.Registry;
 using Bicep.Core.Samples;
+using Bicep.Core.UnitTests.Assertions;
 using Bicep.Core.UnitTests.Registry;
 using FluentAssertions;
 using FluentAssertions.Execution;
@@ -87,6 +88,7 @@ namespace Bicep.Cli.IntegrationTests
 {
             var outputDirectory = dataSet.SaveFilesToTestDirectory(TestContext);
             var bicepFilePath = Path.Combine(outputDirectory, DataSet.TestFileMain);
+            var compiledFilePath = Path.Combine(outputDirectory, DataSet.TestFileMainCompiled);
 
             var testClient = new MockRegistryBlobClient();
 
@@ -102,6 +104,11 @@ namespace Bicep.Cli.IntegrationTests
             result.Should().Be(0);
             output.Should().BeEmpty();
             AssertNoErrors(error);
+
+            using var expectedCompiledStream = new FileStream(compiledFilePath, FileMode.Open, FileAccess.Read);
+
+            // verify the module was published
+            testClient.Should().OnlyHaveModule("v1", expectedCompiledStream);
         }
 
         [DataTestMethod]

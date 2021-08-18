@@ -14,6 +14,9 @@ using System.Threading.Tasks;
 
 namespace Bicep.Core.UnitTests.Registry
 {
+    /// <summary>
+    /// Mock OCI registry blob client. This client is intended to represent a single repository within a specific registry Uri.
+    /// </summary>
     public class MockRegistryBlobClient: BicepRegistryBlobClient
     {
         private static MockRepository Repository = new(MockBehavior.Strict);
@@ -103,18 +106,7 @@ namespace Bicep.Core.UnitTests.Registry
             return CreateResult(new UploadManifestResult());
         }
 
-        private static Response<T> CreateResult<T>(T value)
-        {
-            var response = Repository.Create<Response>();
-
-            var result = Repository.Create<Response<T>>();
-            result.SetupGet(m => m.Value).Returns(value);
-            result.Setup(m => m.GetRawResponse()).Returns(response.Object);
-
-            return result.Object;
-        }
-
-        private static (ImmutableArray<byte>, string) ReadStream(Stream stream)
+        public static (ImmutableArray<byte> bytes, string digest) ReadStream(Stream stream)
         {
             stream.Position = 0;
             string digest = DigestHelper.ComputeDigest(DigestHelper.AlgorithmIdentifierSha256, stream);
@@ -130,7 +122,7 @@ namespace Bicep.Core.UnitTests.Registry
             return (bytes, digest);
         }
 
-        private static Stream WriteStream(ImmutableArray<byte> bytes)
+        public static Stream WriteStream(ImmutableArray<byte> bytes)
         {
             var stream = new MemoryStream(bytes.Length);
             var writer = new BinaryWriter(stream, new UTF8Encoding(false), true);
@@ -139,6 +131,17 @@ namespace Bicep.Core.UnitTests.Registry
             stream.Position = 0;
 
             return stream;
+        }
+
+        private static Response<T> CreateResult<T>(T value)
+        {
+            var response = Repository.Create<Response>();
+
+            var result = Repository.Create<Response<T>>();
+            result.SetupGet(m => m.Value).Returns(value);
+            result.Setup(m => m.GetRawResponse()).Returns(response.Object);
+
+            return result.Object;
         }
     }
 }

@@ -21,12 +21,7 @@ namespace Bicep.Core.Registry.Oci
             var serializer = CreateSerializer();
             var manifest = serializer.Deserialize<OciManifest>(reader);
 
-            if (manifest is not null)
-            {
-                return manifest;
-            }
-
-            throw new InvalidOperationException("Unable to deserialize artifact manifest content.");
+            return manifest ?? throw new InvalidOperationException("Manifest is null");
         }
 
         public static void SerializeManifest(Stream stream, OciManifest manifest)

@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
 using UploadManifestOptions = Bicep.Core.RegistryClient.UploadManifestOptions;
 
@@ -104,7 +105,7 @@ namespace Bicep.Core.Registry
             return Path.Combine(directories);
         }
 
-        public string GetLocalPackageEntryPointPath(OciArtifactModuleReference reference) => Path.Combine(this.GetLocalPackageDirectory(reference), "main.bicep");
+        public string GetLocalPackageEntryPointPath(OciArtifactModuleReference reference) => Path.Combine(this.GetLocalPackageDirectory(reference), "main.json");
 
         private static Uri GetRegistryUri(OciArtifactModuleReference moduleReference) => new Uri($"https://{moduleReference.Registry}");
 
@@ -138,19 +139,18 @@ namespace Bicep.Core.Registry
         {
             var client = this.CreateBlobClient(moduleReference);
 
-            var manifestResult = await client.DownloadManifestAsync(moduleReference.Tag, new DownloadManifestOptions(ContentType.ApplicationVndOciImageManifestV1Json));
-
-            // TODO: Validate content in the future
-            if (!manifestResult.GetRawResponse().Headers.TryGetValue("Docker-Content-Digest", out var digest))
-            {
-                throw new InvalidOperationException("The registry did not return a digest in the response.");
-            }
+            var manifestResponse = await client.DownloadManifestAsync(moduleReference.Tag, new DownloadManifestOptions(ContentType.ApplicationVndOciImageManifestV1Json));
+            ValidateManifestResponse(manifestResponse);
 
             string modulePath = GetLocalPackageDirectory(moduleReference);
             CreateModuleDirectory(modulePath);
 
             // the SDK doesn't expose all the manifest properties we need
-            var manifest = OciManifestSerialization.DeserializeManifest(manifestResult.Value.Content);
+            // so we need to deserialize the manifest ourselves to get everything
+            var manifest = DeserializeManifest(manifestResponse.Value.Content);
+
+            ValidateConfig(manifest.Config);
+            
 
             foreach (var layer in manifest.Layers)
             {
@@ -162,6 +162,59 @@ namespace Bicep.Core.Registry
 
                 using var fileStream = new FileStream(layerPath, FileMode.Create);
                 await blobResult.Value.Content.CopyToAsync(fileStream);
+            }
+        }
+
+        private static void ValidateManifestResponse(Response<DownloadManifestResult> manifestResponse)
+        {
+            var expectedDigest = GetDigest(manifestResponse.GetRawResponse());
+
+            var stream = manifestResponse.Value.Content;
+            stream.Position = 0;
+
+            // TODO: The registry may use a different digest algorithm - we need to handle that
+            string actualDigest = DigestHelper.ComputeDigest(DigestHelper.AlgorithmIdentifierSha256, stream);
+
+            if (!string.Equals(expectedDigest, actualDigest, StringComparison.Ordinal))
+            {
+                throw new AcrManagerException($"The digest of manifest contents (\"{actualDigest}\") does not match the digest in the registry response header (\"{expectedDigest}\").");
+            }
+        }
+
+        private static void ValidateConfig(OciDescriptor config)
+        {
+            // media types are case insensitive
+            if(!string.Equals(config.MediaType, BicepMediaTypes.BicepModuleConfigV1, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AcrManagerException($"The OCI artifact is not a valid Bicep module. The config media type \"{config.MediaType}\" is not supported.");
+            }
+
+            if(config.Size != 0)
+            {
+                throw new AcrManagerException($"The OCI artifact is not a valid Bicep module. Unexpected non-empty config blob.");
+            }
+        }
+
+        private static string GetDigest(Response response)
+        {
+            const string HeaderName = "Docker-Content-Digest";
+            if (response.Headers.TryGetValue(HeaderName, out var digest))
+            {
+                return digest;
+            }
+
+            throw new AcrManagerException($"The registry response did not include the {HeaderName} header with the digest.");
+        }
+
+        private static OciManifest DeserializeManifest(Stream stream)
+        {
+            try
+            {
+                return OciManifestSerialization.DeserializeManifest(stream);
+            }
+            catch(Exception exception)
+            {
+                throw new AcrManagerException("Unable to deserialize the module manifest.", exception);
             }
         }
 

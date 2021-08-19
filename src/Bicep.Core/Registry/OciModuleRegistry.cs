@@ -73,7 +73,7 @@ namespace Bicep.Core.Registry
                     }
                 }
             }
-
+            
             return statuses;
         }
 

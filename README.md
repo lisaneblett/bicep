@@ -1,3 +1,4 @@
+[![Board Status](https://ag-ascii.visualstudio.com/0b1cc7e2-e667-455a-bece-4279f62db8ff/d7897412-76a4-4087-9c2d-05323f38b56b/_apis/work/boardbadge/c630eb83-75ac-4291-ad7a-cb3e9b00cefc)](https://ag-ascii.visualstudio.com/0b1cc7e2-e667-455a-bece-4279f62db8ff/_boards/board/t/d7897412-76a4-4087-9c2d-05323f38b56b/Microsoft.RequirementCategory)
 ![Build](https://github.com/Azure/bicep/workflows/Build/badge.svg)
 [![codecov](https://codecov.io/gh/Azure/bicep/branch/main/graph/badge.svg)](https://codecov.io/gh/Azure/bicep)
 [![Good First Issues](https://img.shields.io/github/issues/Azure/Bicep/good%20first%20issue?color=important&label=good%20first%20issue&style=flat)](https://github.com/Azure/Bicep/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
